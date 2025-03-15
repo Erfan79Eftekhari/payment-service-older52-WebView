@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fa">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>پرداخت</title>
+    <link rel="stylesheet" href="prePayment.css" />
+    <script>
+      function onPaymentResult(result) {
+        try {
+          var parsedResult = JSON.parse(result);
+          console.log("Payment Result Received:", parsedResult);
+          document.getElementById("cardData").innerHTML = `
+            <p>شماره کارت: ${parsedResult.CardNumber}</p>
+            <p>مبلغ: ${parsedResult.Amount}</p>
+            <p>شماره پیگیری: ${parsedResult.TraceNumber}</p>
+            <p>تاریخ و زمان: ${parsedResult.DateAndTime}</p>
+            <p>وضعیت: ${parsedResult.ResponseFa}</p>
+          `;
+
+          if (
+            parsedResult.ResponseCode === 0 ||
+            parsedResult.ResponseCode === 100
+          ) {
+            document.getElementById("status").innerHTML =
+              "<div class='successMessage'>تراکنش موفق</div>";
+            document.getElementById("printButton").style.display = "block";
+          } else {
+            document.getElementById("status").innerHTML =
+              "<div class='errorMessage'>تراکنش ناموفق</div>";
+          }
+        } catch (error) {
+          console.error("Failed to parse payment result:", error);
+        }
+      }
+
+      function handlePayment() {
+        var amount = document.getElementById("amount").value;
+        console.log("پرداخت با مقدار:", amount);
+        window.Android.DoPayment(Number(amount));
+      }
+
+      function handleBack() {
+        window.Android.CancelOperation();
+      }
+
+      function printReceipt() {
+        try {
+          // دریافت اطلاعات پرداخت از المان HTML
+          const cardDataElement = document.getElementById("cardData");
+          const cardData = {
+            cardNumber:
+              cardDataElement.querySelector("p:nth-child(1)").textContent,
+            amount: cardDataElement.querySelector("p:nth-child(2)").textContent,
+            traceNumber:
+              cardDataElement.querySelector("p:nth-child(3)").textContent,
+            dateTime:
+              cardDataElement.querySelector("p:nth-child(4)").textContent,
+            status: cardDataElement.querySelector("p:nth-child(5)").textContent,
+          };
+
+          // ذخیره اطلاعات در localStorage
+          localStorage.setItem("paymentData", JSON.stringify(cardData));
+
+          // هدایت کاربر به صفحه print.html
+          window.location.href = "print.html";
+        } catch (error) {
+          console.error("خطا در ارسال اطلاعات به صفحه چاپ:", error);
+          alert("خطا در ارسال اطلاعات به صفحه چاپ");
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="formContainer">
+        <input
+          type="text"
+          id="amount"
+          class="input"
+          placeholder="مقدار را وارد کنید"
+        />
+        <div class="buttonContainer">
+          <button class="button backButton" onclick="handleBack()">
+            برگشت
+          </button>
+          <button class="button payButton" onclick="handlePayment()">
+            پرداخت
+          </button>
+        </div>
+        <div id="cardData" class="responseContainer"></div>
+        <div id="status"></div>
+        <button
+          id="printButton"
+          class="printButton"
+          style="display: none"
+          onclick="printReceipt()"
+        >
+          چاپ رسید
+        </button>
+      </div>
+    </div>
+  </body>
+</html>

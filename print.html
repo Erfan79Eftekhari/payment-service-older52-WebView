@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>چاپ رسید</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="print.css" />
+    <style>
+      /* استایل‌های مورد نیاز اینجا اضافه می‌شوند */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="buttonContainer">
+        <button id="backButton" class="backButton">بازگشت به صفحه اصلی</button>
+        <button id="printButton" class="printButton">پرینت</button>
+      </div>
+
+      <!-- نمایش وضعیت چاپ -->
+      <div class="printStatus">
+        <p id="buyerPrintStatusText">وضعیت چاپ نسخه خریدار: ❌ ناموفق</p>
+        <p id="sellerPrintStatusText">وضعیت چاپ نسخه فروشنده: ❌ ناموفق</p>
+      </div>
+
+      <div id="messageContainer" class="message" style="display: none"></div>
+
+      <!-- نسخه خریدار -->
+      <div class="buyersReceipt displaynone">
+        <h2>نسخه خریدار</h2>
+        <h1>رسید پرداخت</h1>
+        <div class="details">
+          <div class="left">
+            <p id="buyerDateTime"></p>
+          </div>
+          <div class="right">
+            <p id="buyerTraceNumber"></p>
+            <p id="buyerCardNumber"></p>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>شرح</th>
+              <th>مبلغ (ریال)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>پرداخت</td>
+              <td id="buyerAmount"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="total">
+          <p>جمع کل</p>
+          <p id="buyerTotalAmount"></p>
+        </div>
+        <p class="footer">با تشکر از پرداخت شما</p>
+      </div>
+
+      <!-- نسخه فروشنده -->
+      <div class="sellersReceipt displaynone">
+        <h2>نسخه فروشنده</h2>
+        <h1>رسید پرداخت</h1>
+        <div class="details">
+          <div class="left">
+            <p id="sellerDateTime"></p>
+          </div>
+          <div class="right">
+            <p id="sellerTraceNumber"></p>
+            <p id="sellerCardNumber"></p>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>شرح</th>
+              <th>مبلغ (ریال)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>پرداخت</td>
+              <td id="sellerAmount"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="total">
+          <p>جمع کل</p>
+          <p id="sellerTotalAmount"></p>
+        </div>
+        <p class="footer">نسخه فروشنده - لطفاً نزد خود نگه دارید</p>
+      </div>
+    </div>
+
+    <script>
+      // متغیرهای وضعیت
+      var isPrinting = false;
+      var buyerPrintStatus = false;
+      var sellerPrintStatus = false;
+      var cardData = {};
+
+      // اجرای کد پس از بارگذاری صفحه
+      document.addEventListener("DOMContentLoaded", function () {
+        // دریافت اطلاعات از localStorage
+        try {
+          var paymentDataString = localStorage.getItem("paymentData");
+          if (paymentDataString) {
+            cardData = JSON.parse(paymentDataString);
+          } else {
+            cardData = {
+              DateAndTime: "",
+              TraceNumber: "",
+              CardNumber: "",
+              Amount: "",
+            };
+          }
+        } catch (error) {
+          console.error("خطا در دریافت اطلاعات:", error);
+          cardData = {
+            DateAndTime: "",
+            TraceNumber: "",
+            CardNumber: "",
+            Amount: "",
+          };
+        }
+
+        // پر کردن اطلاعات در رسیدها
+        updateReceiptData();
+
+        // اضافه کردن رویدادها به دکمه‌ها
+        document
+          .getElementById("backButton")
+          .addEventListener("click", handleBack);
+        document
+          .getElementById("printButton")
+          .addEventListener("click", handlePrint);
+      });
+
+      // بروزرسانی اطلاعات رسیدها
+      function updateReceiptData() {
+        // نسخه خریدار
+        document.getElementById("buyerDateTime").textContent =
+          cardData.DateAndTime;
+        document.getElementById("buyerTraceNumber").textContent =
+          "شماره پیگیری: " + cardData.TraceNumber;
+        document.getElementById("buyerCardNumber").textContent =
+          "شماره کارت: " + cardData.CardNumber;
+        document.getElementById("buyerAmount").textContent = cardData.Amount;
+        document.getElementById("buyerTotalAmount").textContent =
+          cardData.Amount + " ریال";
+
+        // نسخه فروشنده
+        document.getElementById("sellerDateTime").textContent =
+          cardData.DateAndTime;
+        document.getElementById("sellerTraceNumber").textContent =
+          "شماره پیگیری: " + cardData.TraceNumber;
+        document.getElementById("sellerCardNumber").textContent =
+          "شماره کارت: " + cardData.CardNumber;
+        document.getElementById("sellerAmount").textContent = cardData.Amount;
+        document.getElementById("sellerTotalAmount").textContent =
+          cardData.Amount + " ریال";
+      }
+
+      // نمایش پیام
+      function setPrintMessage(message, isSuccess) {
+        isSuccess = isSuccess || false;
+        var messageContainer = document.getElementById("messageContainer");
+        messageContainer.textContent = message;
+        messageContainer.style.display = "block";
+
+        if (isSuccess) {
+          messageContainer.classList.add("success");
+          messageContainer.classList.remove("error");
+        } else {
+          messageContainer.classList.add("error");
+          messageContainer.classList.remove("success");
+        }
+      }
+
+      // بروزرسانی وضعیت چاپ
+      function updatePrintStatus() {
+        document.getElementById("buyerPrintStatusText").textContent =
+          "وضعیت چاپ نسخه خریدار: " +
+          (buyerPrintStatus ? "✅ موفق" : "❌ ناموفق");
+
+        document.getElementById("sellerPrintStatusText").textContent =
+          "وضعیت چاپ نسخه فروشنده: " +
+          (sellerPrintStatus ? "✅ موفق" : "❌ ناموفق");
+      }
+
+      // دکمه بازگشت
+      function handleBack() {
+        if (!isPrinting) {
+          window.location.href = "paymentPage.html";
+        }
+      }
+
+      // عملیات چاپ
+      function handlePrint() {
+        if (isPrinting) return;
+
+        isPrinting = true;
+        document.getElementById("printButton").textContent = "در حال چاپ...";
+        document.getElementById("printButton").disabled = true;
+        document.getElementById("backButton").disabled = true;
+
+        // پاک کردن پیام قبلی
+        document.getElementById("messageContainer").style.display = "none";
+
+        // چاپ نسخه خریدار
+        var buyersReceipt = document.querySelector(".buyersReceipt");
+        buyersReceipt.classList.remove("displaynone");
+
+        html2canvas(buyersReceipt, { scale: 2 })
+          .then(function (buyerCanvas) {
+            var buyerBase64Image = buyerCanvas
+              .toDataURL("image/png")
+              .split(",")[1];
+
+            // تلاش برای چاپ نسخه خریدار
+            try {
+              window.Android.SaveReceiptWithVerification(buyerBase64Image)
+                .then(function (buyerResult) {
+                  var buyerResponse = JSON.parse(buyerResult);
+                  buyerPrintStatus = buyerResponse.isPrinted;
+                  console.log("buyersResponse:", buyerResponse.isPrinted);
+
+                  if (!buyerResponse.isPrinted) {
+                    setPrintMessage(
+                      buyerResponse.Message || "خطا در چاپ نسخه خریدار"
+                    );
+                    buyersReceipt.classList.add("displaynone");
+                    isPrinting = false;
+                    document.getElementById("printButton").textContent =
+                      "پرینت";
+                    document.getElementById("printButton").disabled = false;
+                    document.getElementById("backButton").disabled = false;
+                    updatePrintStatus();
+                    return;
+                  }
+
+                  // تأخیر کوتاه بین دو چاپ
+                  setTimeout(function () {
+                    // چاپ نسخه فروشنده
+                    buyersReceipt.classList.add("displaynone");
+                    var sellersReceipt =
+                      document.querySelector(".sellersReceipt");
+                    sellersReceipt.classList.remove("displaynone");
+
+                    html2canvas(sellersReceipt, { scale: 2 })
+                      .then(function (sellerCanvas) {
+                        var sellerBase64Image = sellerCanvas
+                          .toDataURL("image/png")
+                          .split(",")[1];
+
+                        try {
+                          window.Android.SaveReceiptWithVerification(
+                            sellerBase64Image
+                          )
+                            .then(function (sellerResult) {
+                              var sellerResponse = JSON.parse(sellerResult);
+                              sellerPrintStatus = sellerResponse.isPrinted;
+                              console.log(
+                                "sellersResponse:",
+                                sellerResponse.isPrinted
+                              );
+
+                              if (sellerResponse.isPrinted) {
+                                setPrintMessage(
+                                  "چاپ هر دو نسخه با موفقیت انجام شد",
+                                  true
+                                );
+                              } else {
+                                setPrintMessage(
+                                  sellerResponse.Message ||
+                                    "خطا در چاپ نسخه فروشنده"
+                                );
+                              }
+
+                              finalizePrinting(sellersReceipt);
+                            })
+                            .catch(function (error) {
+                              console.error(
+                                "Error in seller receipt printing:",
+                                error
+                              );
+                              sellerPrintStatus = false;
+                              setPrintMessage("خطا در چاپ نسخه فروشنده");
+                              finalizePrinting(sellersReceipt);
+                            });
+                        } catch (error) {
+                          console.error(
+                            "Error in seller receipt printing:",
+                            error
+                          );
+                          sellerPrintStatus = false;
+                          setPrintMessage("خطا در چاپ نسخه فروشنده");
+                          finalizePrinting(sellersReceipt);
+                        }
+                      })
+                      .catch(function (error) {
+                        console.error("Error creating seller canvas:", error);
+                        setPrintMessage("خطا در ایجاد تصویر نسخه فروشنده");
+                        finalizePrinting(sellersReceipt);
+                      });
+                  }, 1000);
+                })
+                .catch(function (error) {
+                  console.error("Error in buyer receipt printing:", error);
+                  buyerPrintStatus = false;
+                  setPrintMessage("خطا در چاپ نسخه خریدار");
+                  buyersReceipt.classList.add("displaynone");
+                  isPrinting = false;
+                  document.getElementById("printButton").textContent = "پرینت";
+                  document.getElementById("printButton").disabled = false;
+                  document.getElementById("backButton").disabled = false;
+                  updatePrintStatus();
+                });
+            } catch (error) {
+              console.error("Error in buyer receipt printing:", error);
+              buyerPrintStatus = false;
+              setPrintMessage("خطا در چاپ نسخه خریدار");
+              buyersReceipt.classList.add("displaynone");
+              isPrinting = false;
+              document.getElementById("printButton").textContent = "پرینت";
+              document.getElementById("printButton").disabled = false;
+              document.getElementById("backButton").disabled = false;
+              updatePrintStatus();
+            }
+          })
+          .catch(function (error) {
+            console.error("Error creating buyer canvas:", error);
+            setPrintMessage("خطا در ایجاد تصویر نسخه خریدار");
+            isPrinting = false;
+            document.getElementById("printButton").textContent = "پرینت";
+            document.getElementById("printButton").disabled = false;
+            document.getElementById("backButton").disabled = false;
+            updatePrintStatus();
+          });
+      }
+
+      function finalizePrinting(receipt) {
+        receipt.classList.add("displaynone");
+        isPrinting = false;
+        document.getElementById("printButton").textContent = "پرینت";
+        document.getElementById("printButton").disabled = false;
+        document.getElementById("backButton").disabled = false;
+        updatePrintStatus();
+      }
+    </script>
+  </body>
+</html>
